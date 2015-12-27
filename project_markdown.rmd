@@ -1,0 +1,84 @@
+---
+title: "Practical machine learning project"
+author: "MRIOTH"
+date: "December 27, 2015"
+output: html_document
+---
+Loading packages:
+
+```{r}
+library(e1071)
+library(caret)
+library(ranger)
+```
+
+Data cleaning:
+```{r, echo=FALSE}
+dat <- read.csv("C:/Users/Matt/Dropbox/Courses/Machine Learning/pml-training.csv", row.names = 1)
+```
+```{r}
+db <- as.data.frame(lapply(dat, function(x){
+  x <- replace(x, x %in% c("n", "N", "","#DIV/0!"), NA)
+  x <- as.factor(x)})) #normalizing missing or blank values
+dat2 <- as.data.frame(lapply(db, as.numeric))#converting levels to numeric
+dat2<- dat2[sample(nrow(dat2)),]#randomizing rows
+```
+Assessing correlated variables:
+```{r}
+M<-abs(cor(dat2[,-159]))
+diag(M)<-0
+which(M>0.9,arr.ind=T)
+```
+Removing variables with less than 3% unique information:
+```{r}
+dat3<-dat2[,(colSums(is.na(dat2))/nrow(dat2)) < 0.97]
+```
+Splitting data into 75% training 25% test sets:
+```{r}
+inTrain<-createDataPartition(dat3$classe, p = 0.75)[[1]]
+tra = dat3[ inTrain,]
+test = dat3[-inTrain,]
+```
+Preprocessing training set with principle componenet analysis:
+```{r}
+preProc<- preProcess(log10(tra[,-59]+1), method="pca")
+trainPC<-predict(preProc, log10(tra[,-59]+1))
+```
+Building linear descriminant analysis model (LDA):
+```{r}
+tra$classe<-as.factor(tra$classe)
+modelf<-train(tra$classe~., method="lda", data=trainPC)
+testf<- predict(preProc, log10(test[,-59]+1))
+```
+LDA Accuracy using test data for out of sample error:
+```{r, ECHO=FALSE}
+confusionMatrix(test$classe, predict(modelf,testf))
+```
+**The out of sample error for LDA is 48.4%, pretty high.**  So we will need to try a different model.
+
+Building a random forrest model (via Ranger):
+```{r}
+rf<-ranger(classe~., tra, num.trees = 500, write.forest = TRUE, classification=TRUE)
+
+prd<- predict(rf, dat=test)
+confusionMatrix(prd$predictions, as.factor(test$classe))
+```
+**Using the cross-validated testing set, the out of sample error for random forrest is less than 0.001--much better**  So we will apply this to the project's prediction set.
+
+repeating the data cleaning for the 20-item prediction set:
+```{r, echo=FALSE}
+fin <- read.csv("C:/Users/Matt/Dropbox/Courses/Machine Learning/pml-testing.csv", row.names=1)
+
+fdb <- as.data.frame(lapply(fin, function(x){
+  x <- replace(x, x %in% c("n", "N", "","#DIV/0!"), NA)
+  x <- as.factor(x)}))
+
+fin2 <- as.data.frame(lapply(fdb, as.numeric))
+
+fin3<-fin2[,(colSums(is.na(fin2))/nrow(fin2)) < 0.97]
+```
+Predicting the value using the random forrest classifier:
+```{r}
+predict(rf, dat=fin)
+
+```
