@@ -80,5 +80,6 @@ fin3<-fin2[,(colSums(is.na(fin2))/nrow(fin2)) < 0.97]
 Predicting the value using the random forrest classifier:
 ```{r}
 predict(rf, dat=fin)
-
+[1] E A B A A E C D A A B B E A E E A B C D
+Levels: A B C D E
 ```
