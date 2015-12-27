@@ -1,4 +1,3 @@
-@@ -0,0 +1,84 @@
 ---
 title: "Practical machine learning project"
 author: "MRIOTH"
